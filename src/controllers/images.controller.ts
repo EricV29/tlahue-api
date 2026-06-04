@@ -1,15 +1,16 @@
 import { type Request, type Response } from "express";
 import { db } from "../db/index.js";
 import { categories, imageCategories, images } from "../db/schema.js";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and, or, ilike } from "drizzle-orm";
 
 //* GET
 
 // All images
 export const getImages = async (req: Request, res: Response) => {
   try {
-    const limit = Number(req.query.limit) || 10;
+    const limit = Number(req.query.limit) || 12;
     const offset = Number(req.query.offset) || 0;
+    const search = req.query.search as string | undefined;
 
     const result = await db
       .select({
@@ -28,6 +29,7 @@ export const getImages = async (req: Request, res: Response) => {
       .from(images)
       .leftJoin(imageCategories, eq(images.id, imageCategories.imageId))
       .leftJoin(categories, eq(imageCategories.categoryId, categories.id))
+      .where(search ? or(ilike(images.title, `%${search}%`)) : undefined)
       .groupBy(images.id)
       .limit(limit)
       .offset(offset);
@@ -43,8 +45,9 @@ export const getImages = async (req: Request, res: Response) => {
 export const getImagesByCategory = async (req: Request, res: Response) => {
   try {
     const { categoryId } = req.params;
-    const limit = Number(req.query.limit) || 10;
+    const limit = Number(req.query.limit) || 12;
     const offset = Number(req.query.offset) || 0;
+    const search = req.query.search as string | undefined;
 
     const result = await db
       .select({
@@ -65,7 +68,12 @@ export const getImagesByCategory = async (req: Request, res: Response) => {
       .from(images)
       .innerJoin(imageCategories, eq(images.id, imageCategories.imageId))
       .innerJoin(categories, eq(imageCategories.categoryId, categories.id))
-      .where(eq(imageCategories.categoryId, Number(categoryId)))
+      .where(
+        and(
+          eq(imageCategories.categoryId, Number(categoryId)),
+          search ? or(ilike(images.title, `%${search}%`)) : undefined,
+        ),
+      )
       .groupBy(images.id)
       .limit(limit)
       .offset(offset);
@@ -81,12 +89,26 @@ export const getImagesByCategory = async (req: Request, res: Response) => {
 // Create images
 export const createImage = async (req: Request, res: Response) => {
   try {
+    const { categoryIds, captureAt, ...rest } = req.body;
+
     const imageData = {
-      ...req.body,
-      captureAt: req.body.captureAt ? new Date(req.body.captureAt) : null,
+      ...rest,
+      captureAt: captureAt ? new Date(captureAt) : null,
     };
-    const result = await db.insert(images).values(imageData).returning();
-    res.status(201).json(result[0]);
+
+    // Insertar imagen
+    const [newImage] = await db.insert(images).values(imageData).returning();
+
+    // Insertar categorias
+    if (categoryIds?.length) {
+      await db.insert(imageCategories).values(
+        categoryIds.map((categoryId: number) => ({
+          imageId: newImage?.id,
+          categoryId,
+        })),
+      );
+    }
+    res.status(201).json(newImage);
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Error creating images" });
