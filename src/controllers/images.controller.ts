@@ -2,18 +2,10 @@ import { type Request, type Response } from "express";
 import { db } from "../db/index.js";
 import { categories, imageCategories, images } from "../db/schema.js";
 import { eq, sql, and, or, ilike } from "drizzle-orm";
-
-interface CreateImageBody {
-  categoryIds?: number[];
-  captureAt?: string;
-  title: string;
-  description?: string;
-  url: string;
-  nameCreator?: string;
-  linkOrigin?: string;
-  location?: string;
-  locationLink?: string;
-}
+import {
+  createImageSchema,
+  updateImageSchema,
+} from "../schemas/image.schema.js";
 
 //* GET
 
@@ -102,8 +94,12 @@ export const getImagesByCategory = async (req: Request, res: Response) => {
 
 // Create images
 export const createImage = async (req: Request, res: Response) => {
+  const parsed = createImageSchema.safeParse(req.body);
+  if (!parsed.success)
+    return res.status(400).json({ data: null, message: parsed.error.issues });
+
   try {
-    const { categoryIds, captureAt, ...rest } = req.body as CreateImageBody;
+    const { categoryIds, captureAt, ...rest } = parsed.data;
 
     const imageData = {
       ...rest,
@@ -131,6 +127,10 @@ export const createImage = async (req: Request, res: Response) => {
 
 // Update images
 export const updateImage = async (req: Request, res: Response) => {
+  const parsed = updateImageSchema.safeParse(req.body);
+  if (!parsed.success)
+    return res.status(400).json({ data: null, message: parsed.error.issues });
+
   try {
     const { id } = req.params;
     const { categoryIds, captureAt, ...rest } = req.body;

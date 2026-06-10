@@ -1,15 +1,11 @@
 import { type Request, type Response } from "express";
 import { db } from "../db/index.js";
 import { events } from "../db/schema.js";
+import { eq, sql } from "drizzle-orm";
 import {
-  eq,
-  sql,
-  type InferSelectModel,
-  type InferInsertModel,
-} from "drizzle-orm";
-
-type Event = InferSelectModel<typeof events>;
-type NewEvent = InferInsertModel<typeof events>;
+  createEventSchema,
+  updateEventSchema,
+} from "../schemas/event.schema.js";
 
 //* GET
 
@@ -35,7 +31,7 @@ export const getEventByMonth = async (req: Request, res: Response) => {
         AND EXTRACT(YEAR FROM ${events.startDate}) = ${Number(year)}`,
       );
     if (result.length === 0)
-      return res.status(404).json({ message: "Events not found" });
+      return res.status(404).json({ data: null, message: "Events not found" });
     res.json({ data: result, message: "ok" });
   } catch (error) {
     res.status(500).json({ data: null, message: "Error getting event" });
@@ -46,11 +42,15 @@ export const getEventByMonth = async (req: Request, res: Response) => {
 
 // Create event
 export const createEvent = async (req: Request, res: Response) => {
+  const parsed = createEventSchema.safeParse(req.body);
+  if (!parsed.success)
+    return res.status(400).json({ data: null, message: parsed.error.issues });
+
   try {
     const eventData = {
-      ...(req.body as NewEvent),
-      startDate: req.body.startDate ? new Date(req.body.startDate) : null,
-      endDate: req.body.endDate ? new Date(req.body.endDate) : null,
+      ...parsed.data,
+      startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
+      endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
     };
     const result = await db.insert(events).values(eventData).returning();
     res.status(201).json({ data: result[0], message: "Event created" });
@@ -61,12 +61,16 @@ export const createEvent = async (req: Request, res: Response) => {
 
 // Update event
 export const updateEvent = async (req: Request, res: Response) => {
+  const parsed = updateEventSchema.safeParse(req.body);
+  if (!parsed.success)
+    return res.status(400).json({ data: null, message: parsed.error.issues });
+
   try {
     const { id } = req.params;
 
     const result = await db
       .update(events)
-      .set(req.body as Event)
+      .set(parsed.data)
       .where(eq(events.id, Number(id)))
       .returning();
 

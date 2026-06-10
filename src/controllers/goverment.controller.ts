@@ -1,10 +1,11 @@
 import { type Request, type Response } from "express";
 import { db } from "../db/index.js";
 import { goverment } from "../db/schema.js";
-import { eq, type InferSelectModel, type InferInsertModel } from "drizzle-orm";
-
-type Official = InferSelectModel<typeof goverment>;
-type NewOfficial = InferInsertModel<typeof goverment>;
+import { eq } from "drizzle-orm";
+import {
+  createOfficialSchema,
+  updateOfficialSchema,
+} from "../schemas/goverment.schema.js";
 
 //* GET
 
@@ -22,11 +23,12 @@ export const getGoverment = async (req: Request, res: Response) => {
 
 // Create goverment
 export const createGoverment = async (req: Request, res: Response) => {
+  const parsed = createOfficialSchema.safeParse(req.body);
+  if (!parsed.success)
+    return res.status(400).json({ data: null, message: parsed.error.issues });
+
   try {
-    const result = await db
-      .insert(goverment)
-      .values(req.body as NewOfficial)
-      .returning();
+    const result = await db.insert(goverment).values(parsed.data).returning();
     res.status(201).json({ data: result[0], message: "Official created" });
   } catch (error) {
     res.status(500).json({ data: null, message: "Error creating Official" });
@@ -35,11 +37,15 @@ export const createGoverment = async (req: Request, res: Response) => {
 
 // Update goverment
 export const updateGoverment = async (req: Request, res: Response) => {
+  const parsed = updateOfficialSchema.safeParse(req.body);
+  if (!parsed.success)
+    return res.status(400).json({ data: null, message: parsed.error.issues });
+
   try {
     const { id } = req.params;
     const result = await db
       .update(goverment)
-      .set(req.body as Official)
+      .set(parsed.data)
       .where(eq(goverment.id, Number(id)))
       .returning();
 
