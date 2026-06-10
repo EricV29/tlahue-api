@@ -6,6 +6,7 @@ import {
   createImageSchema,
   updateImageSchema,
 } from "../schemas/image.schema.js";
+import { logger } from "../utils/logger.js";
 
 //* GET
 
@@ -40,7 +41,7 @@ export const getImages = async (req: Request, res: Response) => {
 
     res.json({ data: result, message: "ok" });
   } catch (error) {
-    console.log(error);
+    logger.error("Error getting images", { error });
     res.status(500).json({ data: null, message: "Error getting images" });
   }
 };
@@ -84,6 +85,7 @@ export const getImagesByCategory = async (req: Request, res: Response) => {
 
     res.json({ data: result, message: "ok" });
   } catch (error) {
+    logger.error("Error getting images by category", { error });
     res
       .status(500)
       .json({ data: null, message: "Error getting images by category" });
@@ -120,7 +122,7 @@ export const createImage = async (req: Request, res: Response) => {
     }
     res.status(201).json({ data: newImage, message: "New Image created" });
   } catch (error) {
-    console.log(error);
+    logger.error("Error creating image", { error });
     res.status(500).json({ data: null, message: "Error creating images" });
   }
 };
@@ -159,6 +161,7 @@ export const updateImage = async (req: Request, res: Response) => {
 
     res.json({ data: result[0], message: "Image updated" });
   } catch (error) {
+    logger.error("Error updating image", { error });
     res.status(500).json({ data: null, message: "Error updating image" });
   }
 };
@@ -182,6 +185,7 @@ export const deleteImage = async (req: Request, res: Response) => {
 
     res.json({ data: null, message: "Image deleted" });
   } catch (error) {
+    logger.error("Error deleting image", { error });
     res.status(500).json({ data: null, message: "Error deleting image" });
   }
 };

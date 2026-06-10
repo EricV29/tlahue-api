@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const createEventSchema = z.object({
+const baseEventSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
   image: z.string().min(1, "Image is required"),
@@ -10,7 +10,17 @@ export const createEventSchema = z.object({
   link: z.string().url("Invalid URL").optional().nullable(),
 });
 
-export const updateEventSchema = createEventSchema.partial();
+export const createEventSchema = baseEventSchema.refine(
+  (data) => {
+    if (data.startDate && data.endDate) {
+      return new Date(data.startDate) <= new Date(data.endDate);
+    }
+    return true;
+  },
+  { message: "startDate must be before endDate", path: ["endDate"] },
+);
+
+export const updateEventSchema = baseEventSchema.partial();
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 export type UpdateEventInput = z.infer<typeof updateEventSchema>;
