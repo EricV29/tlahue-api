@@ -1,21 +1,23 @@
 import express, { type NextFunction } from "express";
 import type { Request, Response } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import eventsRoutes from "./routes/events.routes.js";
 import govermentRoutes from "./routes/goverment.routes.js";
 import imagesRoutes from "./routes/image.routes.js";
 import categoriesRoutes from "./routes/category.routes.js";
-import { env } from "./config/env.js";
 
 const app = express();
-const PORT = env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(
   cors({
     origin: "http://localhost:5173",
   }),
 );
+
+app.use(helmet());
 
 app.use(express.json());
 

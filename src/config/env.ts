@@ -1,4 +1,6 @@
-const REQUIRED_VARS = ["DATABASE_URL", "API_KEY", "PORT"] as const;
+import "dotenv/config";
+
+const REQUIRED_VARS = ["DATABASE_URL", "API_KEY"] as const;
 
 type EnvVars = (typeof REQUIRED_VARS)[number];
 

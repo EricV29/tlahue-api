@@ -1,4 +1,5 @@
 import { type Request, type Response, type NextFunction } from "express";
+import { env } from "../config/env.js";
 
 export const requireApiKey = (
   req: Request,
@@ -7,7 +8,7 @@ export const requireApiKey = (
 ) => {
   const apiKey = req.headers["x-api-key"];
 
-  if (!apiKey || apiKey !== process.env.API_KEY) {
+  if (!apiKey || apiKey !== env.API_KEY) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
