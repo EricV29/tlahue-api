@@ -2,6 +2,11 @@ import { type Request, type Response } from "express";
 import { db } from "../db/index.js";
 import { categories, imageCategories, images } from "../db/schema.js";
 import { eq, sql, and, or, ilike } from "drizzle-orm";
+import {
+  createImageSchema,
+  updateImageSchema,
+} from "../schemas/image.schema.js";
+import { logger } from "../utils/logger.js";
 
 //* GET
 
@@ -34,10 +39,10 @@ export const getImages = async (req: Request, res: Response) => {
       .limit(limit)
       .offset(offset);
 
-    res.json(result);
+    res.json({ data: result, message: "ok" });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Error getting images" });
+    logger.error("Error getting images", { error });
+    res.status(500).json({ data: null, message: "Error getting images" });
   }
 };
 
@@ -78,9 +83,12 @@ export const getImagesByCategory = async (req: Request, res: Response) => {
       .limit(limit)
       .offset(offset);
 
-    res.json(result);
+    res.json({ data: result, message: "ok" });
   } catch (error) {
-    res.status(500).json({ error: "Error getting images by category" });
+    logger.error("Error getting images by category", { error });
+    res
+      .status(500)
+      .json({ data: null, message: "Error getting images by category" });
   }
 };
 
@@ -88,8 +96,12 @@ export const getImagesByCategory = async (req: Request, res: Response) => {
 
 // Create images
 export const createImage = async (req: Request, res: Response) => {
+  const parsed = createImageSchema.safeParse(req.body);
+  if (!parsed.success)
+    return res.status(400).json({ data: null, message: parsed.error.issues });
+
   try {
-    const { categoryIds, captureAt, ...rest } = req.body;
+    const { categoryIds, captureAt, ...rest } = parsed.data;
 
     const imageData = {
       ...rest,
@@ -108,25 +120,49 @@ export const createImage = async (req: Request, res: Response) => {
         })),
       );
     }
-    res.status(201).json(newImage);
+    res.status(201).json({ data: newImage, message: "New Image created" });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Error creating images" });
+    logger.error("Error creating image", { error });
+    res.status(500).json({ data: null, message: "Error creating images" });
   }
 };
 
 // Update images
 export const updateImage = async (req: Request, res: Response) => {
+  const parsed = updateImageSchema.safeParse(req.body);
+  if (!parsed.success)
+    return res.status(400).json({ data: null, message: parsed.error.issues });
+
   try {
     const { id } = req.params;
+    const { categoryIds, captureAt, ...rest } = req.body;
+
     const result = await db
       .update(images)
-      .set(req.body)
+      .set({ ...rest, captureAt: captureAt ? new Date(captureAt) : null })
       .where(eq(images.id, Number(id)))
       .returning();
-    res.json(result[0]);
+
+    if (result.length === 0)
+      return res.status(404).json({ data: null, message: "Image not found" });
+
+    // Actualizar categorías
+    if (categoryIds?.length) {
+      await db
+        .delete(imageCategories)
+        .where(eq(imageCategories.imageId, Number(id)));
+      await db.insert(imageCategories).values(
+        categoryIds.map((categoryId: number) => ({
+          imageId: Number(id),
+          categoryId,
+        })),
+      );
+    }
+
+    res.json({ data: result[0], message: "Image updated" });
   } catch (error) {
-    res.status(500).json({ error: "Error updating images" });
+    logger.error("Error updating image", { error });
+    res.status(500).json({ data: null, message: "Error updating image" });
   }
 };
 
@@ -134,9 +170,22 @@ export const updateImage = async (req: Request, res: Response) => {
 export const deleteImage = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+
+    const existing = await db
+      .select()
+      .from(images)
+      .where(eq(images.id, Number(id)));
+    if (existing.length === 0)
+      return res.status(404).json({ data: null, message: "Image not found" });
+
+    await db
+      .delete(imageCategories)
+      .where(eq(imageCategories.imageId, Number(id)));
     await db.delete(images).where(eq(images.id, Number(id)));
-    res.json({ message: "images deleted" });
+
+    res.json({ data: null, message: "Image deleted" });
   } catch (error) {
-    res.status(500).json({ error: "Error deleting images" });
+    logger.error("Error deleting image", { error });
+    res.status(500).json({ data: null, message: "Error deleting image" });
   }
 };

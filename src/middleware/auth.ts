@@ -1,4 +1,6 @@
 import { type Request, type Response, type NextFunction } from "express";
+import { env } from "../config/env.js";
+import { logger } from "../utils/logger.js";
 
 export const requireApiKey = (
   req: Request,
@@ -7,7 +9,8 @@ export const requireApiKey = (
 ) => {
   const apiKey = req.headers["x-api-key"];
 
-  if (!apiKey || apiKey !== process.env.API_KEY) {
+  if (!apiKey || apiKey !== env.API_KEY) {
+    logger.warn(`Unauthorized request from ${req.ip}`);
     return res.status(401).json({ error: "Unauthorized" });
   }
 
