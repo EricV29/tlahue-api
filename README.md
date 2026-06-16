@@ -12,7 +12,7 @@ API RESTful encargada de la lógica de negocio, validación de datos y persisten
 <p align="center" >
   <a href="https://skillicons.dev">
     <img src="https://skillicons.dev/icons?i=nodejs,express,ts,postgres,pnpm" />
-    <img src="https://skills.syvixor.com/api/icons?i=drizzle" />
+    <img src="https://skills.syvixor.com/api/icons?i=drizzle,render" />
 
   </a>
   <br />
